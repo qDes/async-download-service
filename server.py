@@ -1,9 +1,24 @@
 from aiohttp import web
 import aiofiles
+import datetime
+import asyncio 
 
+INTERVAL_SECS = 1
 
 async def archivate(request):
-    raise NotImplementedError
+    response = web.StreamResponse()
+    
+    response.headers['Content-Type']  = 'text/html'
+    await response.prepare(request)
+    
+    while True:
+        formatted_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        message = f'{formatted_date}<br>'  # <br> — HTML тег переноса строки
+
+        # Отправляет клиенту очередную порцию ответа
+        await response.write(message.encode('utf-8'))
+
+        await asyncio.sleep(INTERVAL_SECS) 
 
 
 async def handle_index_page(request):
