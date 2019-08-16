@@ -6,6 +6,25 @@ import asyncio
 INTERVAL_SECS = 1
 
 async def archivate(request):
+    print(request)
+    response = web.StreamResponse()
+    response.headers['Content-Disposition'] = 'multipart/form-data'
+    files = ['test_photos/7kna/1.jpg','test_photos/7kna/2.jpg']
+    cmd = ['zip','-'] + files
+    create = asyncio.create_subprocess_exec(*cmd,
+            stdout = asyncio.subprocess.PIPE)
+    proc = await create
+    await response.prepare(request)
+    while True:
+        line = await proc.stdout.readline()
+        
+        if line:
+            await response.write(line)
+        else:
+            await response.write_eof()
+            break
+    
+    '''
     response = web.StreamResponse()
     
     response.headers['Content-Type']  = 'text/html'
@@ -19,7 +38,7 @@ async def archivate(request):
         await response.write(message.encode('utf-8'))
 
         await asyncio.sleep(INTERVAL_SECS) 
-
+    '''
 
 async def handle_index_page(request):
     async with aiofiles.open('index.html', mode='r') as index_file:
