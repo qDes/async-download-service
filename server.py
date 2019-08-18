@@ -1,44 +1,40 @@
 from aiohttp import web
+from aiohttp.web import HTTPNotFound
+
 import aiofiles
 import datetime
 import asyncio 
+import os
 
 INTERVAL_SECS = 1
 
 async def archivate(request):
-    print(request)
+    '''Async function archives photos and send it to client by chunks '''
+
+    #get photo folder local address
+    folder = 'test_photos/'+request.path.split('/')[2] 
+    #check folder path
+    if not os.path.exists(folder):
+        raise HTTPNotFound(text='Archive does not exist')
+    #create respose
     response = web.StreamResponse()
-    response.headers['Content-Disposition'] = 'multipart/form-data'
-    files = ['test_photos/7kna/1.jpg','test_photos/7kna/2.jpg']
-    cmd = ['zip','-'] + files
+    response.headers['Content-Type'] = 'multipart/form-data'
+    response.headers['Content-Disposition'] = 'attachment; filename = "archive.zip"'
+    #create archivate subprocess
+    cmd = ['zip','-r','-',folder]
     create = asyncio.create_subprocess_exec(*cmd,
             stdout = asyncio.subprocess.PIPE)
     proc = await create
     await response.prepare(request)
     while True:
-        line = await proc.stdout.readline()
-        
-        if line:
-            await response.write(line)
+        # read bytes from archive
+        archive_chunk = await proc.stdout.read(10)
+        if archive_chunk:
+            #send archive chunk to client
+            await response.write(archive_chunk)
         else:
             await response.write_eof()
-            break
-    
-    '''
-    response = web.StreamResponse()
-    
-    response.headers['Content-Type']  = 'text/html'
-    await response.prepare(request)
-    
-    while True:
-        formatted_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        message = f'{formatted_date}<br>'  # <br> — HTML тег переноса строки
-
-        # Отправляет клиенту очередную порцию ответа
-        await response.write(message.encode('utf-8'))
-
-        await asyncio.sleep(INTERVAL_SECS) 
-    '''
+            return response
 
 async def handle_index_page(request):
     async with aiofiles.open('index.html', mode='r') as index_file:
