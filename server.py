@@ -5,13 +5,15 @@ import aiofiles
 import datetime
 import asyncio 
 import os
+import logging 
 
-INTERVAL_SECS = 1
+#logging.basicConfig(level = logging.DEBUG)
+logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG)#, filename = u'mylog.log')
 
 async def archivate(request):
     '''Async function archives photos and send it to client by chunks '''
 
-    #get photo folder local address
+    #get photo folder path
     folder = 'test_photos/'+request.path.split('/')[2] 
     #check folder path
     if not os.path.exists(folder):
@@ -26,15 +28,25 @@ async def archivate(request):
             stdout = asyncio.subprocess.PIPE)
     proc = await create
     await response.prepare(request)
-    while True:
-        # read bytes from archive
-        archive_chunk = await proc.stdout.read(10)
-        if archive_chunk:
-            #send archive chunk to client
-            await response.write(archive_chunk)
-        else:
-            await response.write_eof()
-            return response
+    try:    
+        while True:
+            # read bytes from archive
+            archive_chunk = await proc.stdout.read(1024)
+            if archive_chunk:
+                #send archive chunk to client
+                await response.write(archive_chunk)
+                logging.debug( u'Sending archive chunk ...')
+                #await asyncio.sleep(1)
+            else:
+                await response.write_eof()
+                return response
+    except asyncio.CancelledError:
+        #terminate archive process on connection interruption
+        proc.terminate()
+        raise
+    finally:
+        response.force_close()
+        logging.debug("Connection was interrupted")
 
 async def handle_index_page(request):
     async with aiofiles.open('index.html', mode='r') as index_file:
