@@ -13,12 +13,9 @@ async def archivate(request,photo_folder,delay):
     '''Async function archives photos and send it to client by chunks '''
     
 
-    #get photo folder path
     folder = photo_folder + request.match_info['archive_hash']
-    #check folder path
     if not os.path.exists(folder):
         raise HTTPNotFound(text='Archive does not exist or was deleted.')
-    #create respose
     response = web.StreamResponse()
     response.headers['Content-Type'] = 'multipart/form-data'
     response.headers['Content-Disposition'] = 'attachment; filename = "archive.zip"'
@@ -28,12 +25,12 @@ async def archivate(request,photo_folder,delay):
             stdout = asyncio.subprocess.PIPE)
     archivate_proc = await create_process
     await response.prepare(request)
+    #set chunk size for 64 kb
+    CHUNK_SIZE = 54120 
     try:    
         while True:
-            # read bytes from archive
-            archive_chunk = await archivate_proc.stdout.read(32768)
+            archive_chunk = await archivate_proc.stdout.read(CHUNK_SIZE)
             if archive_chunk:
-                #send archive chunk to client
                 await response.write(archive_chunk)
                 logging.debug( u'Sending archive chunk ...')
                 if delay:
@@ -42,7 +39,6 @@ async def archivate(request,photo_folder,delay):
                 await response.write_eof()
                 return response
     except asyncio.CancelledError:
-        #terminate archive process on connection interruption
         archivate_proc.terminate()
         raise
     finally:
