@@ -30,14 +30,14 @@ async def archivate(request,photo_folder,delay):
     try:    
         while True:
             archive_chunk = await archivate_proc.stdout.read(CHUNK_SIZE)
-            if archive_chunk:
-                await response.write(archive_chunk)
-                logging.debug( u'Sending archive chunk ...')
-                if delay:
-                    await asyncio.sleep(int(delay))
-            else:
+            if not archive_chunk:
                 await response.write_eof()
-                return response
+                break
+            await response.write(archive_chunk)
+            logging.debug( u'Sending archive chunk ...')
+            if delay:
+                await asyncio.sleep(int(delay))
+        return response
     except asyncio.CancelledError:
         archivate_proc.terminate()
         raise
